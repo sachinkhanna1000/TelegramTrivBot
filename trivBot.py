@@ -2,6 +2,10 @@ import telegram
 from telegram.ext import CommandHandler
 from countryinfo import CountryInfo
 
+def start_command(update, context):
+    message = "Welcome! Please type '/capital [country]' to get the capital information of a country."
+    update.message.reply_text(message)
+
 def capital_command(update, context):
     country_name = ' '.join(context.args)
     try:
@@ -17,7 +21,8 @@ def capital_command(update, context):
 bot = telegram.Bot(token='6236204817:AAF0TKOdox9lzXUpmV_xhnPUAGvzlcZneQM')
 updater = telegram.ext.Updater(bot=bot, use_context=True)
 
-# Add the command handler for the '/capital' command
+# Add the command handlers
+updater.dispatcher.add_handler(CommandHandler('start', start_command))
 updater.dispatcher.add_handler(CommandHandler('capital', capital_command))
 
 updater.start_polling()
