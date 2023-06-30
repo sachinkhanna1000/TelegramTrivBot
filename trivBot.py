@@ -1,30 +1,259 @@
-import telegram
-from telegram.ext import CommandHandler
-from countryinfo import CountryInfo
+import logging
+from telegram import Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
+import countryinfo
 import emoji
 
-def start_command(update, context):
-    message = "Welcome! Please type '/capital [country]' to get the capital information of a country."
-    update.message.reply_text(message)
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
 
-def capital_command(update, context):
+logger = logging.getLogger(__name__)
+
+# Create a dictionary to map country names to emoji flags
+COUNTRY_FLAGS = {
+    "france": "🇫🇷",
+    "germany": "🇩🇪",
+    "afghanistan": "🇦🇫",
+    "albania": "🇦🇱",
+    "algeria": "🇩🇿",
+    "andorra": "🇦🇩",
+    "angola": "🇦🇴",
+    "antigua and barbuda": "🇦🇬",
+    "argentina": "🇦🇷",
+    "armenia": "🇦🇲",
+    "australia": "🇦🇺",
+    "austria": "🇦🇹",
+    "azerbaijan": "🇦🇿",
+    "bahamas": "🇧🇸",
+    "bahrain": "🇧🇭",
+    "bangladesh": "🇧🇩",
+    "barbados": "🇧🇧",
+    "belarus": "🇧🇾",
+    "belgium": "🇧🇪",
+    "belize": "🇧🇿",
+    "benin": "🇧🇯",
+    "bhutan": "🇧🇹",
+    "bolivia": "🇧🇴",
+    "bosnia and herzegovina": "🇧🇦",
+    "botswana": "🇧🇼",
+    "brazil": "🇧🇷",
+    "brunei": "🇧🇳",
+    "bulgaria": "🇧🇬",
+    "burkina faso": "🇧🇫",
+    "burundi": "🇧🇮",
+    "cabo verde": "🇨🇻",
+    "cambodia": "🇰🇭",
+    "cameroon": "🇨🇲",
+    "canada": "🇨🇦",
+    "central african republic": "🇨🇫",
+    "chad": "🇹🇩",
+    "chile": "🇨🇱",
+    "china": "🇨🇳",
+    "colombia": "🇨🇴",
+    "comoros": "🇰🇲",
+    "congo (brazzaville)": "🇨🇬",
+    "congo (kinshasa)": "🇨🇩",
+    "costa rica": "🇨🇷",
+    "croatia": "🇭🇷",
+    "cuba": "🇨🇺",
+    "cyprus": "🇨🇾",
+    "czech republic": "🇨🇿",
+    "denmark": "🇩🇰",
+    "djibouti": "🇩🇯",
+    "dominica": "🇩🇲",
+    "dominican republic": "🇩🇴",
+    "ecuador": "🇪🇨",
+    "egypt": "🇪🇬",
+    "el salvador": "🇸🇻",
+    "equatorial guinea": "🇬🇶",
+    "eritrea": "🇪🇷",
+    "estonia": "🇪🇪",
+    "eswatini": "🇸🇿",
+    "ethiopia": "🇪🇹",
+    "fiji": "🇫🇯",
+    "finland": "🇫🇮",
+    "gabon": "🇬🇦",
+    "gambia": "🇬🇲",
+    "georgia": "🇬🇪",
+    "ghana": "🇬🇭",
+    "greece": "🇬🇷",
+    "grenada": "🇬🇩",
+    "guatemala": "🇬🇹",
+    "guinea": "🇬🇳",
+    "guinea-bissau": "🇬🇼",
+    "guyana": "🇬🇾",
+    "haiti": "🇭🇹",
+    "honduras": "🇭🇳",
+    "hungary": "🇭🇺",
+    "iceland": "🇮🇸",
+    "india": "🇮🇳",
+    "indonesia": "🇮🇩",
+    "iran": "🇮🇷",
+    "iraq": "🇮🇶",
+    "ireland": "🇮🇪",
+    "israel": "🇮🇱",
+    "italy": "🇮🇹",
+    "jamaica": "🇯🇲",
+    "japan": "🇯🇵",
+    "jordan": "🇯🇴",
+    "kazakhstan": "🇰🇿",
+    "kenya": "🇰🇪",
+    "kiribati": "🇰🇮",
+    "north korea": "🇰🇵",
+    "south korea": "🇰🇷",
+    "kosovo": "🇽🇰",
+    "kuwait": "🇰🇼",
+    "kyrgyzstan": "🇰🇬",
+    "laos": "🇱🇦",
+    "latvia": "🇱🇻",
+    "lebanon": "🇱🇧",
+    "lesotho": "🇱🇸",
+    "liberia": "🇱🇷",
+    "libya": "🇱🇾",
+    "liechtenstein": "🇱🇮",
+    "lithuania": "🇱🇹",
+    "luxembourg": "🇱🇺",
+    "madagascar": "🇲🇬",
+    "malawi": "🇲🇼",
+    "malaysia": "🇲🇾",
+    "maldives": "🇲🇻",
+    "mali": "🇲🇱",
+    "malta": "🇲🇹",
+    "marshall islands": "🇲🇭",
+    "mauritania": "🇲🇷",
+    "mauritius": "🇲🇺",
+    "mexico": "🇲🇽",
+    "micronesia": "🇫🇲",
+    "moldova": "🇲🇩",
+    "monaco": "🇲🇨",
+    "mongolia": "🇲🇳",
+    "montenegro": "🇲🇪",
+    "morocco": "🇲🇦",
+    "mozambique": "🇲🇿",
+    "myanmar": "🇲🇲",
+    "namibia": "🇳🇦",
+    "nauru": "🇳🇷",
+    "nepal": "🇳🇵",
+    "netherlands": "🇳🇱",
+    "new zealand": "🇳🇿",
+    "nicaragua": "🇳🇮",
+    "niger": "🇳🇪",
+    "nigeria": "🇳🇬",
+    "north macedonia": "🇲🇰",
+    "norway": "🇳🇴",
+    "oman": "🇴🇲",
+    "pakistan": "🇵🇰",
+    "palau": "🇵🇼",
+    "panama": "🇵🇦",
+    "papua new guinea": "🇵🇬",
+    "paraguay": "🇵🇾",
+    "peru": "🇵🇪",
+    "philippines": "🇵🇭",
+    "poland": "🇵🇱",
+    "portugal": "🇵🇹",
+    "qatar": "🇶🇦",
+    "romania": "🇷🇴",
+    "russia": "🇷🇺",
+    "rwanda": "🇷🇼",
+    "saint kitts and nevis": "🇰🇳",
+    "saint lucia": "🇱🇨",
+    "saint vincent and the grenadines": "🇻🇨",
+    "samoa": "🇼🇸",
+    "san marino": "🇸🇲",
+    "sao tome and principe": "🇸🇹",
+    "saudi arabia": "🇸🇦",
+    "senegal": "🇸🇳",
+    "serbia": "🇷🇸",
+    "seychelles": "🇸🇨",
+    "sierra leone": "🇸🇱",
+    "singapore": "🇸🇬",
+    "slovakia": "🇸🇰",
+    "slovenia": "🇸🇮",
+    "solomon islands": "🇸🇧",
+    "somalia": "🇸🇴",
+    "south africa": "🇿🇦",
+    "south sudan": "🇸🇸",
+    "spain": "🇪🇸",
+    "sri lanka": "🇱🇰",
+    "sudan": "🇸🇩",
+    "suriname": "🇸🇷",
+    "sweden": "🇸🇪",
+    "switzerland": "🇨🇭",
+    "syria": "🇸🇾",
+    "taiwan": "🇹🇼",
+    "tajikistan": "🇹🇯",
+    "tanzania": "🇹🇿",
+    "thailand": "🇹🇭",
+    "timor-leste": "🇹🇱",
+    "togo": "🇹🇬",
+    "tonga": "🇹🇴",
+    "trinidad and tobago": "🇹🇹",
+    "tunisia": "🇹🇳",
+    "turkey": "🇹🇷",
+    "turkmenistan": "🇹🇲",
+    "tuvalu": "🇹🇻",
+    "uganda": "🇺🇬",
+    "ukraine": "🇺🇦",
+    "united arab emirates": "🇦🇪",
+    "united kingdom": "🇬🇧",
+    "united states": "🇺🇸",
+    "uruguay": "🇺🇾",
+    "uzbekistan": "🇺🇿",
+    "vanuatu": "🇻🇺",
+    "vatican city": "🇻🇦",
+    "venezuela": "🇻🇪",
+    "vietnam": "🇻🇳",
+    "yemen": "🇾🇪",
+    "zambia": "🇿🇲",
+    "zimbabwe": "🇿🇼",
+    # Add more country names and their respective emoji flags here
+}
+
+# Define the capital command handler function
+def capital_command(update: Update, context: CallbackContext):
     country_name = ' '.join(context.args)
-    try:
-        country = CountryInfo(country_name)
-        capital = country.capital()
-        emoji_flag = emoji.emojize(country.emoji(), use_aliases=True)
-        response = f"The capital of {country_name} {emoji_flag} is {capital}."
-    except KeyError:
-        response = "Sorry, I couldn't find information about that country."
+    if country_name:
+        try:
+            country = countryinfo.CountryInfo(country_name)
+            capital = country.capital()
+            
+            # Get the emoji flag based on the country name
+            emoji_flag = COUNTRY_FLAGS.get(country_name.lower(), "")
+            
+            response = f"The capital of {country_name} is {capital} {emoji.emojize(emoji_flag, use_aliases=True)}"
+        except countryinfo.CountryInfoException:
+            response = f"Sorry, I couldn't find information for {country_name}"
+    else:
+        response = "Please provide a country name"
+    
+    # Send the response
+    context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
-    update.message.reply_text(response)
+def start_command(update: Update, context: CallbackContext):
+    response = "Hello! I am a bot that can provide information about country capitals. Just type /capital followed by a country name."
+    context.bot.send_message(chat_id=update.effective_chat.id, text=response)
 
-# Replace 'YOUR_API_TOKEN' with your Telegram bot API token
-bot = telegram.Bot(token='6236204817:AAF0TKOdox9lzXUpmV_xhnPUAGvzlcZneQM')
-updater = telegram.ext.Updater(bot=bot, use_context=True)
+def main():
+    # Create the Updater and pass in your bot's token
+    updater = Updater(token='6236204817:AAF0TKOdox9lzXUpmV_xhnPUAGvzlcZneQM', use_context=True)
 
-# Add the command handlers
-updater.dispatcher.add_handler(CommandHandler('start', start_command))
-updater.dispatcher.add_handler(CommandHandler('capital', capital_command))
+    # Get the dispatcher to register handlers
+    dispatcher = updater.dispatcher
 
-updater.start_polling()
+    # Register the capital command handler
+    capital_handler = CommandHandler('capital', capital_command)
+    dispatcher.add_handler(capital_handler)
+
+    # Register the start command handler
+    start_handler = CommandHandler('start', start_command)
+    dispatcher.add_handler(start_handler)
+
+    # Start the bot
+    updater.start_polling()
+
+    # Run the bot until you press Ctrl-C
+    updater.idle()
+
+if __name__ == '__main__':
+    main()
