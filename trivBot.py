@@ -1,6 +1,7 @@
 import telegram
 from telegram.ext import CommandHandler
 from countryinfo import CountryInfo
+import emoji
 
 def start_command(update, context):
     message = "Welcome! Please type '/capital [country]' to get the capital information of a country."
@@ -11,7 +12,8 @@ def capital_command(update, context):
     try:
         country = CountryInfo(country_name)
         capital = country.capital()
-        response = f"The capital of {country_name} is {capital}."
+        emoji_flag = emoji.emojize(country.emoji(), use_aliases=True)
+        response = f"The capital of {country_name} {emoji_flag} is {capital}."
     except KeyError:
         response = "Sorry, I couldn't find information about that country."
 
