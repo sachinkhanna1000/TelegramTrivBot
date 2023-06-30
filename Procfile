@@ -1,1 +1,1 @@
-web: python trivBot.py
+worker: python trivBot.py
