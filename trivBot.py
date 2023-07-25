@@ -4,9 +4,9 @@ import openai
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
-TOKEN = '6236204817:AAF0TKOdox9lzXUpmV_xhnPUAGvzlcZneQM'
+TOKEN = ''
 
-openai.api_key = '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'
+openai.api_key = ''
 
 def ask_question(question):
     chat_history = openai.ChatCompletion.create(
